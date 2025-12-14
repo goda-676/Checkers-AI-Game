@@ -1,207 +1,577 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[codz]
-*$py.class
+#import pygame
+import sys
+import copy
 
-# C extensions
-*.so
+# ==================== CONSTANTS ====================
+WIDTH, HEIGHT = 800, 800
+ROWS, COLS = 8, 8
+SQUARE_SIZE = WIDTH // COLS
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+# Colors
+RED = (255, 0, 0)
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+BLUE = (0, 0, 255)
+GREY = (128, 128, 128)
+GOLD = (255, 215, 0)
+GREEN = (0, 255, 0)
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+# ==================== PIECE CLASS ====================
+class Piece:
+    PADDING = 15
+    OUTLINE = 2
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+    def __init__(self, row, col, color):
+        self.row = row
+        self.col = col
+        self.color = color
+        self.king = False
+        self.x = 0
+        self.y = 0
+        self.calc_pos()
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py.cover
-.hypothesis/
-.pytest_cache/
-cover/
+    def calc_pos(self):
+        self.x = SQUARE_SIZE * self.col + SQUARE_SIZE // 2
+        self.y = SQUARE_SIZE * self.row + SQUARE_SIZE // 2
 
-# Translations
-*.mo
-*.pot
+    def make_king(self):
+        self.king = True
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
+    def draw(self, win):
+        radius = SQUARE_SIZE // 2 - self.PADDING
+        pygame.draw.circle(win, GREY, (self.x, self.y), radius + self.OUTLINE)
+        pygame.draw.circle(win, self.color, (self.x, self.y), radius)
+        if self.king:
+            # Draw crown using shapes instead of image
+            crown_size = 20
+            pygame.draw.circle(win, GOLD, (self.x, self.y), crown_size // 2)
+            pygame.draw.polygon(win, GOLD, [
+                (self.x - 10, self.y),
+                (self.x - 5, self.y - 10),
+                (self.x, self.y),
+                (self.x + 5, self.y - 10),
+                (self.x + 10, self.y)
+            ])
 
-# Flask stuff:
-instance/
-.webassets-cache
+    def move(self, row, col):
+        self.row = row
+        self.col = col
+        self.calc_pos()
 
-# Scrapy stuff:
-.scrapy
+    def __repr__(self):
+        return str(self.color)
 
-# Sphinx documentation
-docs/_build/
 
-# PyBuilder
-.pybuilder/
-target/
+# ==================== BOARD CLASS ====================
+class Board:
+    def __init__(self):
+        self.board = []
+        self.red_left = self.white_left = 12
+        self.red_kings = self.white_kings = 0
+        self.create_board()
+    
+    def draw_squares(self, win):
+        win.fill(BLACK)
+        for row in range(ROWS):
+            for col in range(row % 2, COLS, 2):
+                pygame.draw.rect(win, RED, (col * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
 
-# Jupyter Notebook
-.ipynb_checkpoints
+    def move(self, piece, row, col):
+        self.board[piece.row][piece.col], self.board[row][col] = self.board[row][col], self.board[piece.row][piece.col]
+        piece.move(row, col)
+        if row == ROWS - 1 or row == 0:
+            piece.make_king()
+            if piece.color == WHITE:
+                self.white_kings += 1
+            else:
+                self.red_kings += 1 
 
-# IPython
-profile_default/
-ipython_config.py
+    def get_piece(self, row, col):
+        return self.board[row][col]
 
-# pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
-# .python-version
+    def create_board(self):
+        for row in range(ROWS):
+            self.board.append([])
+            for col in range(COLS):
+                if col % 2 == ((row + 1) % 2):
+                    if row < 3:
+                        self.board[row].append(Piece(row, col, WHITE))
+                    elif row > 4:
+                        self.board[row].append(Piece(row, col, RED))
+                    else:
+                        self.board[row].append(0)
+                else:
+                    self.board[row].append(0)
+        
+    def draw(self, win):
+        self.draw_squares(win)
+        for row in range(ROWS):
+            for col in range(COLS):
+                piece = self.board[row][col]
+                if piece != 0:
+                    piece.draw(win)
 
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
+    def remove(self, pieces):
+        for piece in pieces:
+            self.board[piece.row][piece.col] = 0
+            if piece != 0:
+                if piece.color == RED:
+                    self.red_left -= 1
+                else:
+                    self.white_left -= 1
+    
+    def winner(self):
+        if self.red_left <= 0:
+            return WHITE
+        elif self.white_left <= 0:
+            return RED
+        return None 
 
-# UV
-#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#uv.lock
+    def get_valid_moves(self, piece):
+        moves = {}
+        left = piece.col - 1
+        right = piece.col + 1
+        row = piece.row
 
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
-#poetry.toml
+        if piece.color == RED or piece.king:
+            moves.update(self._traverse_left(row - 1, max(row - 3, -1), -1, piece.color, left))
+            moves.update(self._traverse_right(row - 1, max(row - 3, -1), -1, piece.color, right))
+        if piece.color == WHITE or piece.king:
+            moves.update(self._traverse_left(row + 1, min(row + 3, ROWS), 1, piece.color, left))
+            moves.update(self._traverse_right(row + 1, min(row + 3, ROWS), 1, piece.color, right))
+        return moves
 
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#   pdm recommends including project-wide configuration in pdm.toml, but excluding .pdm-python.
-#   https://pdm-project.org/en/latest/usage/project/#working-with-version-control
-#pdm.lock
-#pdm.toml
-.pdm-python
-.pdm-build/
+    def _traverse_left(self, start, stop, step, color, left, skipped=None):
+        if skipped is None:
+            skipped = []
+        moves = {}
+        last = []
+        for r in range(start, stop, step):
+            if left < 0:
+                break
+            current = self.board[r][left]
+            if current == 0:
+                if skipped and not last:
+                    break
+                elif skipped:
+                    moves[(r, left)] = last + skipped
+                else:
+                    moves[(r, left)] = last
+                if last:
+                    if step == -1:
+                        row = max(r - 3, 0)
+                    else:
+                        row = min(r + 3, ROWS)
+                    moves.update(self._traverse_left(r + step, row, step, color, left - 1, skipped=last))
+                    moves.update(self._traverse_right(r + step, row, step, color, left + 1, skipped=last))
+                break
+            elif current.color == color:
+                break
+            else:
+                last = [current]
+            left -= 1
+        return moves
 
-# pixi
-#   Similar to Pipfile.lock, it is generally recommended to include pixi.lock in version control.
-#pixi.lock
-#   Pixi creates a virtual environment in the .pixi directory, just like venv module creates one
-#   in the .venv directory. It is recommended not to include this directory in version control.
-.pixi
+    def _traverse_right(self, start, stop, step, color, right, skipped=None):
+        if skipped is None:
+            skipped = []
+        moves = {}
+        last = []
+        for r in range(start, stop, step):
+            if right >= COLS:
+                break
+            current = self.board[r][right]
+            if current == 0:
+                if skipped and not last:
+                    break
+                elif skipped:
+                    moves[(r, right)] = last + skipped
+                else:
+                    moves[(r, right)] = last
+                if last:
+                    if step == -1:
+                        row = max(r - 3, 0)
+                    else:
+                        row = min(r + 3, ROWS)
+                    moves.update(self._traverse_left(r + step, row, step, color, right - 1, skipped=last))
+                    moves.update(self._traverse_right(r + step, row, step, color, right + 1, skipped=last))
+                break
+            elif current.color == color:
+                break
+            else:
+                last = [current]
+            right += 1
+        return moves
+    
+    def get_all_pieces(self, color):
+        """Get all pieces of a specific color"""
+        pieces = []
+        for row in self.board:
+            for piece in row:
+                if piece != 0 and piece.color == color:
+                    pieces.append(piece)
+        return pieces
+    
+    def evaluate(self):
+        """
+        Evaluation function for the board state
+        Positive score favors WHITE, negative favors RED
+        """
+        # Basic piece count
+        score = self.white_left - self.red_left
+        
+        # Kings are worth more (2.5x regular piece)
+        score += (self.white_kings * 1.5) - (self.red_kings * 1.5)
+        
+        # Position evaluation: pieces closer to becoming king are better
+        for row in range(ROWS):
+            for col in range(COLS):
+                piece = self.board[row][col]
+                if piece != 0 and not piece.king:
+                    if piece.color == WHITE:
+                        # WHITE pieces moving down (higher row number = closer to king)
+                        score += row * 0.1
+                    else:
+                        # RED pieces moving up (lower row number = closer to king)
+                        score -= (ROWS - 1 - row) * 0.1
+        
+        return score
 
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
 
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
+# ==================== AI CLASS WITH MINIMAX ====================
+class AI:
+    def __init__(self, depth=4):
+        """
+        Initialize AI with search depth
+        depth=3: Easy
+        depth=4: Medium (default)
+        depth=5: Hard
+        """
+        self.depth = depth
+        self.nodes_explored = 0
+    
+    def minimax(self, board, depth, alpha, beta, maximizing_player):
+        """
+        Minimax algorithm with Alpha-Beta Pruning
+        
+        Parameters:
+        - board: Current board state
+        - depth: How deep to search
+        - alpha: Best value for maximizer
+        - beta: Best value for minimizer
+        - maximizing_player: True if WHITE's turn, False if RED's turn
+        
+        Returns: (score, best_board_state)
+        """
+        self.nodes_explored += 1
+        
+        # Base case: reached depth limit or game over
+        if depth == 0 or board.winner() is not None:
+            return board.evaluate(), board
+        
+        if maximizing_player:
+            # WHITE's turn (maximizing)
+            max_eval = float('-inf')
+            best_board = None
+            
+            # Get all possible moves for WHITE
+            all_moves = self.get_all_moves(board, WHITE)
+            
+            for move_board in all_moves:
+                evaluation = self.minimax(move_board, depth - 1, alpha, beta, False)[0]
+                
+                if evaluation > max_eval:
+                    max_eval = evaluation
+                    best_board = move_board
+                
+                alpha = max(alpha, evaluation)
+                
+                # Alpha-Beta Pruning
+                if beta <= alpha:
+                    break
+            
+            return max_eval, best_board
+        
+        else:
+            # RED's turn (minimizing)
+            min_eval = float('inf')
+            best_board = None
+            
+            # Get all possible moves for RED
+            all_moves = self.get_all_moves(board, RED)
+            
+            for move_board in all_moves:
+                evaluation = self.minimax(move_board, depth - 1, alpha, beta, True)[0]
+                
+                if evaluation < min_eval:
+                    min_eval = evaluation
+                    best_board = move_board
+                
+                beta = min(beta, evaluation)
+                
+                # Alpha-Beta Pruning
+                if beta <= alpha:
+                    break
+            
+            return min_eval, best_board
+    
+    def get_all_moves(self, board, color):
+        """
+        Generate all possible board states after one move for a color
+        """
+        moves = []
+        
+        # Get all pieces of this color
+        for piece in board.get_all_pieces(color):
+            # Get valid moves for this piece
+            valid_moves = board.get_valid_moves(piece)
+            
+            # Simulate each move
+            for move, skip in valid_moves.items():
+                # Create a deep copy of the board
+                temp_board = self.simulate_move(piece, move, board, skip)
+                moves.append(temp_board)
+        
+        return moves
+    
+    def simulate_move(self, piece, move, board, skip):
+        """
+        Simulate a move and return new board state
+        """
+        # Deep copy the board
+        temp_board = copy.deepcopy(board)
+        temp_piece = temp_board.get_piece(piece.row, piece.col)
+        new_row, new_col = move
+        
+        # Execute the move
+        temp_board.move(temp_piece, new_row, new_col)
+        
+        # Remove skipped pieces
+        if skip:
+            temp_board.remove(skip)
+        
+        return temp_board
+    
+    def get_best_move(self, board, color):
+        """
+        Get the best move for AI using Minimax
+        Returns the best board state
+        """
+        self.nodes_explored = 0
+        
+        # WHITE is maximizing, RED is minimizing
+        is_maximizing = (color == WHITE)
+        
+        print(f"AI is thinking... (Depth: {self.depth})")
+        _, best_board = self.minimax(board, self.depth, float('-inf'), float('inf'), is_maximizing)
+        print(f"Nodes explored: {self.nodes_explored}")
+        
+        return best_board
 
-# SageMath parsed files
-*.sage.py
 
-# Environments
-.env
-.envrc
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+# ==================== GAME CLASS ====================
+class Game:
+    def __init__(self, win, mode="PVP"):
+        """
+        mode: "PVP" (Player vs Player) or "PVE" (Player vs AI)
+        """
+        self.win = win
+        self.mode = mode
+        self.ai = AI(depth=4) if mode == "PVE" else None
+        self._init()
+    
+    def _init(self):
+        self.selected = None
+        self.board = Board()
+        self.turn = RED
+        self.valid_moves = {}
 
-# Spyder project settings
-.spyderproject
-.spyproject
+    def update(self):
+        self.board.draw(self.win)
+        self.draw_valid_moves(self.valid_moves)
+        self.draw_turn_indicator()
+        pygame.display.update()
 
-# Rope project settings
-.ropeproject
+    def draw_turn_indicator(self):
+        font = pygame.font.Font(None, 36)
+        color_name = "RED (You)" if self.turn == RED else "WHITE (AI)" if self.mode == "PVE" else "WHITE"
+        text = font.render(f"Turn: {color_name}", True, self.turn)
+        self.win.blit(text, (10, 10))
+        
+        # Draw mode indicator
+        mode_text = "Player vs AI" if self.mode == "PVE" else "Player vs Player"
+        mode_surface = font.render(mode_text, True, GREEN)
+        self.win.blit(mode_surface, (WIDTH - 250, 10))
 
-# mkdocs documentation
-/site
+    def winner(self):
+        return self.board.winner()
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+    def reset(self):
+        self._init()
 
-# Pyre type checker
-.pyre/
+    def select(self, row, col):
+        if self.selected:
+            result = self._move(row, col)
+            if not result:
+                self.selected = None
+                self.select(row, col)
+        piece = self.board.get_piece(row, col)
+        if piece != 0 and piece.color == self.turn:
+            self.selected = piece
+            self.valid_moves = self.board.get_valid_moves(piece)
+            return True
+        return False
 
-# pytype static type analyzer
-.pytype/
+    def _move(self, row, col):
+        piece = self.board.get_piece(row, col)
+        if self.selected and piece == 0 and (row, col) in self.valid_moves:
+            self.board.move(self.selected, row, col)
+            skipped = self.valid_moves[(row, col)]
+            if skipped:
+                self.board.remove(skipped)
+            self.change_turn()
+            return True
+        return False
 
-# Cython debug symbols
-cython_debug/
+    def draw_valid_moves(self, moves):
+        for move in moves:
+            row, col = move
+            pygame.draw.circle(self.win, BLUE, 
+                             (col * SQUARE_SIZE + SQUARE_SIZE // 2, 
+                              row * SQUARE_SIZE + SQUARE_SIZE // 2), 15)
 
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+    def change_turn(self):
+        self.valid_moves = {}
+        self.turn = WHITE if self.turn == RED else RED
+        self.selected = None
+    
+    def ai_move(self):
+        """Execute AI move"""
+        if self.mode == "PVE" and self.turn == WHITE and self.ai:
+            # Get best move from AI
+            new_board = self.ai.get_best_move(self.board, WHITE)
+            self.board = new_board
+            self.change_turn()
 
-# Abstra
-# Abstra is an AI-powered process automation framework.
-# Ignore directories containing user credentials, local state, and settings.
-# Learn more at https://abstra.io/docs
-.abstra/
 
-# Visual Studio Code
-#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
-#  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#  and can be added to the global gitignore or merged into this file. However, if you prefer, 
-#  you could uncomment the following to ignore the entire vscode folder
-# .vscode/
+# ==================== MENU SCREEN ====================
+def draw_menu(win):
+    """Draw game mode selection menu"""
+    win.fill(BLACK)
+    
+    font_title = pygame.font.Font(None, 72)
+    font_option = pygame.font.Font(None, 48)
+    
+    # Title
+    title = font_title.render("CHECKERS", True, WHITE)
+    title_rect = title.get_rect(center=(WIDTH // 2, 150))
+    win.blit(title, title_rect)
+    
+    # Options
+    pvp_text = font_option.render("1. Player vs Player", True, RED)
+    pvp_rect = pvp_text.get_rect(center=(WIDTH // 2, 300))
+    
+    pve_text = font_option.render("2. Player vs AI", True, GREEN)
+    pve_rect = pve_text.get_rect(center=(WIDTH // 2, 400))
+    
+    instruction = font_option.render("Press 1 or 2 to select", True, GREY)
+    instruction_rect = instruction.get_rect(center=(WIDTH // 2, 550))
+    
+    win.blit(pvp_text, pvp_rect)
+    win.blit(pve_text, pve_rect)
+    win.blit(instruction, instruction_rect)
+    
+    pygame.display.update()
 
-# Ruff stuff:
-.ruff_cache/
 
-# PyPI configuration file
-.pypirc
+# ==================== MAIN GAME ====================
+def get_row_col_from_mouse(pos):
+    x, y = pos
+    row = y // SQUARE_SIZE
+    col = x // SQUARE_SIZE
+    return row, col
 
-# Cursor
-#  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
-#  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
-#  refer to https://docs.cursor.com/context/ignore-files
-.cursorignore
-.cursorindexingignore
 
-# Marimo
-marimo/_static/
-marimo/_lsp/
-__marimo__/
+def main():
+    pygame.init()
+    FPS = 60
+    WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption('Checkers Game - AI Project')
+    
+    # Menu selection
+    selecting_mode = True
+    game_mode = None
+    
+    while selecting_mode:
+        draw_menu(WIN)
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    game_mode = "PVP"
+                    selecting_mode = False
+                elif event.key == pygame.K_2:
+                    game_mode = "PVE"
+                    selecting_mode = False
+    
+    # Start game with selected mode
+    run = True
+    clock = pygame.time.Clock()
+    game = Game(WIN, mode=game_mode)
+
+    while run:
+        clock.tick(FPS)
+        
+        # Check for AI turn
+        if game.mode == "PVE" and game.turn == WHITE:
+            game.ai_move()
+        
+        winner = game.winner()
+        if winner is not None:
+            # Draw final state
+            game.update()
+            
+            # Show winner message
+            font = pygame.font.Font(None, 72)
+            if game.mode == "PVE":
+                winner_text = "YOU WIN!" if winner == RED else "AI WINS!"
+            else:
+                winner_text = "RED WINS!" if winner == RED else "WHITE WINS!"
+            
+            text = font.render(winner_text, True, winner)
+            text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+            
+            # Draw semi-transparent background
+            overlay = pygame.Surface((WIDTH, HEIGHT))
+            overlay.set_alpha(200)
+            overlay.fill(BLACK)
+            WIN.blit(overlay, (0, 0))
+            WIN.blit(text, text_rect)
+            
+            pygame.display.update()
+            pygame.time.delay(5000)
+            run = False
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+            
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                # Only allow human input on their turn
+                if game.mode == "PVP" or (game.mode == "PVE" and game.turn == RED):
+                    pos = pygame.mouse.get_pos()
+                    row, col = get_row_col_from_mouse(pos)
+                    game.select(row, col)
+
+        game.update()
+    
+    pygame.quit()
+    sys.exit()
+
+
+if __name__ == "__main__":
+    main()
