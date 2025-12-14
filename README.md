@@ -104,7 +104,7 @@ Checkers_AI/
 | Goda Ahmed Ibrahiem | `checkers_board.py` (AI & Game Logic) |
 | Mohamed Hafez | `game_manager.py`                     |
 | Doaa Ahmed | `game_ui.py`, `main.py`               |
-| Zeyad Amner | Documentation, Testing & Screenshots  |
+| Zeyad Amer | Documentation, Testing & Screenshots  |
 
 ---
 
