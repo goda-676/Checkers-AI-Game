@@ -81,15 +81,16 @@ Checkers_AI/
 
 ---
 
-## 📷 Screenshots
+## 📸 Screenshots
 
-> Add your screenshots here after running the game.
+### 🟢 Main Menu
+![Main Menu](Screenshots/Main%20Menu/main_menu.png)
 
-```
-![Main Menu](Screenshots/main_menu.png)
-![Gameplay](Screenshots/gameplay.png)
-![End Game](Screenshots/end_game.png)
+### 🎮 Gameplay
+![Gameplay](Screenshots/Gameplay/gameplay.png)
 
+### 🔴 End Game
+![End Game](Screenshots/End%20Game/end_game.png)
 
 ---
 
