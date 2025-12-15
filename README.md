@@ -10,7 +10,7 @@ This project implements the classic Checkers game using a **modular architecture
 
 * **`main.py`** — Application entry point.
 * **`game_manager.py`** — Manages the game loop, turns, and win conditions.
-* **`game_ui.py`** — Renders the board, pieces, and handles mouse input via Pygame.
+* **`piece.py`** — Renders the board, pieces, and handles mouse input via Pygame.
 * **`checkers_board.py`** — Core game logic, move generation, captures, kings, and AI engine.
 * **`constants.py`** — Board size, colors, and configuration constants.
 
@@ -104,8 +104,8 @@ Checkers_AI/
 | Goda Ahmed Ibrahiem | `checkers_board.py` (AI & Game Logic) `checkers_board.py` |
 | Mohamed Hafez | `game_manager.py`          |
 | Doaa Ahmed | `main.py`               |
-| Zeyad Amer | `game_ui.py`  |
-| Mohamed Khaled | `game_ui.py`  |
+| Zeyad Amer | `piece.py`  |
+| Mohamed Khaled | `README.md`  |
 
 ---
 
