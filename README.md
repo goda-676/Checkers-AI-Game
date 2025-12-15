@@ -55,7 +55,7 @@ Checkers_AI/
 │
 ├── main.py                 # Entry point
 ├── game_manager.py         # Game loop & state management
-├── game_ui.py              # Pygame UI & input handling
+├── piece.py              # Pygame UI & input handling
 ├── checkers_board.py       # Game logic & AI engine
 ├── constants.py            # Colors, board size, settings
 ├── Screenshots/            # Game screenshots
