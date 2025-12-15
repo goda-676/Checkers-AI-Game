@@ -83,14 +83,14 @@ Checkers_AI/
 
 ## 📸 Screenshots
 
-### 🟢 Main Menu
-![Main Menu](Screenshots/main_menu.png)
+### 🏠 Main Menu
+![Main Menu](Screenshots/Main%20Menu.png)
 
 ### 🎮 Gameplay
-![Gameplay](Screenshots/Gameplay/gameplay.png)
+![Gameplay](Screenshots/Gameplay.png)
 
-### 🔴 End Game
-![End Game](Screenshots/End%20Game/end_game.png)
+### 🏁 End Game
+![End Game](Screenshots/End%20Game.png)
 
 
 
