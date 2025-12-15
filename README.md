@@ -105,6 +105,7 @@ Checkers_AI/
 | Mohamed Hafez | `game_manager.py`                     |
 | Doaa Ahmed | `main.py`               |
 | Zeyad Amer | `game_ui.py`  |
+| Mohamed Khaled | `game_ui.py`  |
 
 ---
 
