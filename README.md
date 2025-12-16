@@ -101,11 +101,11 @@ Checkers_AI/
 
 | Name           | Contribution                          |
 | -------------- | ------------------------------------- |
-| Goda Ahmed Ibrahiem | `checkers_board.py` (AI & Game Logic) `checkers_board.py` |
+| Goda Ahmed Ibrahiem | `checkers_board.py` (AI & Game Logic) , `README.md` |
 | Mohamed Hafez | `game_manager.py`          |
-| Doaa Ahmed | `main.py`               |
+| Doaa Ahmed | `main.py `  `Documentation `          |
 | Zeyad Amer | `piece.py`  |
-| Mohamed Khaled | `README.md`  |
+| Mohamed Khaled | `constants.py`  |
 
 ---
 
